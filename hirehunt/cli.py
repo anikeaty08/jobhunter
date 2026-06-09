@@ -151,15 +151,16 @@ def _print_rich(result, query_city: str, role: str, top: int, no_color: bool, cs
         return
 
     # ── Header ──────────────────────────────────────────────────────────────
-    loc_str = f" in [bold yellow]{query_city}[/]" if query_city else ""
-    header = Text.assemble(
-        ("🎯 HireHunt", "bold white"),
-        ("  ·  ", "dim"),
-        (f"'{role}'", "bold cyan"),
-        loc_str,
-        ("  ·  ", "dim"),
-        (f"{len(jobs)} unique jobs", "bold green"),
-    )
+    loc_part = f" in {query_city}" if query_city else ""
+    header = Text()
+    header.append("🎯 HireHunt", style="bold white")
+    header.append("  ·  ", style="dim")
+    header.append(f"'{role}'", style="bold cyan")
+    if query_city:
+        header.append(" in ", style="dim")
+        header.append(query_city, style="bold yellow")
+    header.append("  ·  ", style="dim")
+    header.append(f"{len(jobs)} unique jobs", style="bold green")
     console.print()
     console.print(Panel(header, border_style="bright_blue", padding=(0, 2)))
 
@@ -195,7 +196,7 @@ def _print_rich(result, query_city: str, role: str, top: int, no_color: bool, cs
     table.add_column("City", width=14, no_wrap=True)
     table.add_column("Source", width=16)
     table.add_column("Salary", width=14, style="bold green")
-    table.add_column("URL", min_width=35, no_wrap=True, style="link")
+    table.add_column("URL", min_width=40, no_wrap=True, style="bright_blue")
 
     for i, job in enumerate(jobs[:top], 1):
         score_bar = _score_bar(job.match_score)
