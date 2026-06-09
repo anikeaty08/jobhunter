@@ -4,9 +4,6 @@ on:
   release:
     types: [published]
 
-permissions:
-  id-token: write  # Required for OIDC trusted publishing
-
 jobs:
   build:
     name: Build distribution
@@ -36,7 +33,6 @@ jobs:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    environment: pypi  # Must match the environment name on PyPI
 
     steps:
       - name: Download build artifacts
@@ -47,3 +43,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
