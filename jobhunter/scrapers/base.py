@@ -31,6 +31,12 @@ class BaseScraper(ABC):
     def fetch(self, url: str) -> FetchResponse | None:
         return self.fetcher.fetch(url)
 
+    def get_json(self, url: str, *, params: dict | None = None, headers: dict | None = None) -> FetchResponse | None:
+        return self.fetcher.get_json(url, params=params, headers=headers)
+
+    def post_json(self, url: str, *, headers: dict[str, str] | None = None, payload: dict | None = None) -> FetchResponse | None:
+        return self.fetcher.post_json(url, headers=headers, payload=payload)
+
     @abstractmethod
     def search(self, query: JobQuery) -> list[Job]:
         """Return normalized jobs for a query."""

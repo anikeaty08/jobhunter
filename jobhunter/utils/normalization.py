@@ -146,6 +146,10 @@ def parse_money(text: str | None, default_currency: str = "INR") -> Money:
         period = SalaryPeriod.YEAR
     elif any(marker in lowered for marker in ("per hour", "/hour", "hourly")):
         period = SalaryPeriod.HOUR
+    elif any(marker in lowered for marker in ("per week", "/week", "weekly")):
+        period = SalaryPeriod.WEEK
+    elif any(marker in lowered for marker in ("per day", "/day", "daily")):
+        period = SalaryPeriod.DAY
 
     numbers = re.findall(r"(\d+(?:,\d+)*(?:\.\d+)?)\s*(lpa|lac|lakh|k)?", lowered)
     shared_lakh_suffix = any(marker in lowered for marker in ("lpa", "lac", "lakh"))

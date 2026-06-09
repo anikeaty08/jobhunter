@@ -43,6 +43,16 @@ def validate_sources(query: JobQuery, sources: list[str] | None = None) -> list[
                 cache_enabled=query.cache_enabled,
                 cache_dir=query.cache_dir,
             )
+            if source == "indeed":
+                jobs = scraper.search(query)
+                item.url = scraper.build_url(query) if hasattr(scraper, "build_url") else ""
+                item.status_code = getattr(scraper, "last_status_code", 200 if jobs else 0)
+                item.backend = getattr(scraper, "last_backend", "requests")
+                item.fetched = item.status_code == 200
+                item.parsed_count = len(jobs)
+                item.sample_titles = [job.title for job in jobs[:5]]
+                results.append(item)
+                continue
             url = scraper.build_url(query) if hasattr(scraper, "build_url") else ""
             item.url = url
             response = scraper.fetch(url) if url else None
@@ -65,10 +75,6 @@ def validate_sources(query: JobQuery, sources: list[str] | None = None) -> list[
 
 def _parse_with_source(scraper, html: str, query: JobQuery):
     source = scraper.source
-    if source == "indeed":
-        from jobhunter.scrapers.indeed import parse_indeed_jobs
-
-        return parse_indeed_jobs(html, query)
     if source == "internshala":
         from jobhunter.scrapers.internshala import parse_internshala_jobs
 

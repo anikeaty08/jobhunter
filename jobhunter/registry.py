@@ -28,8 +28,13 @@ class ScraperRegistry:
     def auto_sources(self, query_country: str = "", include_regional: bool = True) -> list[str]:
         names = ["indeed", "linkedin"]
         if include_regional and query_country.lower() in {"", "india", "in"}:
-            names.extend(["internshala", "unstop"])
+            names.extend(["internshala", "naukri", "shine", "unstop"])
         return [name for name in names if name in self._scrapers]
+
+    def faang_sources(self) -> list[str]:
+        """Return all FAANG/Big-Tech source names."""
+        candidates = ["google_careers", "amazon", "meta", "apple", "netflix", "microsoft"]
+        return [name for name in candidates if name in self._scrapers]
 
 
 def default_registry() -> ScraperRegistry:

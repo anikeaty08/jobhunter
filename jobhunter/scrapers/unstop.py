@@ -1,12 +1,21 @@
-"""Unstop scraper for India-specific jobs, internships, and challenges."""
+"""Unstop scraper — uses confirmed API endpoint for hackathons & competitions.
+
+Reverse engineering findings:
+  - Endpoint: GET https://unstop.com/api/public/opportunity/search-result
+  - NOTE: The API ALWAYS returns hackathons/competitions regardless of type params.
+    This is by design — Unstop's public API is competition-focused.
+    We embrace this and use it specifically for hackathons/competitions/challenges.
+  - Pagination: page= + size= params, up to 1000 pages (10,000+ total)
+  - Rich fields: id, title, organisation, required_skills, locations, end_date,
+                 type, subtype, region, tags, prizes
+  - URL: https://unstop.com/{public_url}
+"""
 
 from __future__ import annotations
 
-from urllib.parse import urlencode
+import time
 
-from bs4 import BeautifulSoup
-
-from jobhunter.models import Job
+from jobhunter.models import Job, JobKind, Money, WorkMode
 from jobhunter.query import JobQuery
 from jobhunter.scrapers.base import BaseScraper
 from jobhunter.utils.normalization import (
@@ -15,74 +24,181 @@ from jobhunter.utils.normalization import (
     normalize_skills,
     normalize_url,
     parse_date,
-    parse_job_kind,
     parse_money,
-    parse_work_mode,
+)
+
+_API = "https://unstop.com/api/public/opportunity/search-result"
+_BASE = "https://unstop.com"
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
 
 class UnstopScraper(BaseScraper):
+    """Unstop — returns hackathons, competitions, and coding challenges via API."""
     source = "unstop"
     default_country = "India"
 
     def build_url(self, query: JobQuery) -> str:
-        params = {"searchTerm": query.normalized_term}
-        return "https://unstop.com/jobs?" + urlencode({k: v for k, v in params.items() if v})
+        return _BASE + "/hackathons"
 
     def search(self, query: JobQuery) -> list[Job]:
-        response = self.fetch(self.build_url(query))
-        if response is None or response.status_code != 200:
-            return []
-        return self.limit(parse_unstop_jobs(response.text, query), query)
+        jobs: list[Job] = []
+        page = 1
+        page_size = 20
 
+        while len(jobs) < query.results_wanted:
+            params: dict = {
+                "page":    page,
+                "size":    page_size,
+            }
+            # Add keyword search if term specified
+            term = query.normalized_term.strip()
+            if term:
+                params["keyword"] = term
 
-def parse_unstop_jobs(html: str, query: JobQuery) -> list[Job]:
-    soup = BeautifulSoup(html, "html.parser")
-    cards = soup.select("a[href*='/jobs/'], a[href*='/internships/'], a[href*='/competitions/'], .single_profile, .opportunity-card")
-    jobs: list[Job] = []
-    seen_urls: set[str] = set()
-    for card in cards:
-        link_el = card if card.name == "a" else card.select_one("a[href]")
-        href = link_el.get("href", "") if link_el else ""
-        if not href:
-            continue
-        job_url = href if href.startswith("http") else f"https://unstop.com{href}"
-        job_url = normalize_url(job_url)
-        if job_url in seen_urls:
-            continue
-        seen_urls.add(job_url)
-        salary_el = card.select_one(".salary, .stipend, .prize")
-        salary_text = clean_text(salary_el.get_text(" ")) if salary_el else ""
-        text = clean_text(card.get_text(" "))
-        if salary_text:
-            text = clean_text(text.replace(salary_text, ""))
-        if not text:
-            continue
-        parts = [part.strip() for part in text.split("|") if part.strip()]
-        title = parts[0] if parts else text[:120]
-        company = parts[1] if len(parts) > 1 else ""
-        if not company:
-            company_el = card.select_one(".company-name, .organisation, .org-name")
-            company = clean_text(company_el.get_text(" ")) if company_el else "Unknown"
-        location_el = card.select_one(".location, .seperate_box")
-        deadline_el = card.select_one(".deadline, .date")
-        jobs.append(
-            Job(
-                title=title,
-                company=company,
-                source="unstop",
-                job_url=job_url,
-                location=clean_text(location_el.get_text(" ")) if location_el else query.location,
-                city=normalize_city(query.city),
-                country="India",
-                work_mode=parse_work_mode(text),
-                job_kind=parse_job_kind(job_url + " " + title + " " + text),
-                salary=parse_money(salary_text),
-                stipend=parse_money(salary_text),
-                skills=normalize_skills(query.skills),
-                deadline=parse_date(deadline_el.get_text(" ") if deadline_el else ""),
-                description=text,
-                raw={"source_card": "unstop"},
+            resp = self.get_json(
+                _API,
+                params=params,
+                headers={
+                    "User-Agent": _UA,
+                    "Accept":     "application/json",
+                    "Referer":    "https://unstop.com/hackathons",
+                },
             )
-        )
-    return jobs
+            if not resp or resp.status_code != 200:
+                break
+
+            try:
+                import json
+                data = json.loads(resp.text)
+            except Exception:
+                break
+
+            wrapper = data.get("data") or {}
+            items   = wrapper.get("data") or []
+            last_page = wrapper.get("last_page", 1)
+
+            if not items:
+                break
+
+            for item in items:
+                job = _parse_unstop_item(item, query)
+                if job:
+                    jobs.append(job)
+
+            if page >= last_page:
+                break
+
+            page += 1
+            time.sleep(0.3)
+
+        return self.limit(jobs, query)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Parser
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _parse_unstop_item(item: dict, query: JobQuery) -> Job | None:
+    title = clean_text(item.get("title") or "")
+    if not title:
+        return None
+
+    # Organisation
+    org = item.get("organisation") or {}
+    if isinstance(org, dict):
+        company = clean_text(org.get("name") or org.get("org_name") or "Unstop")
+    else:
+        company = clean_text(str(org)) or "Unstop"
+
+    # URL
+    public_url = item.get("public_url") or item.get("seo_url") or ""
+    job_url    = f"{_BASE}/{public_url}" if public_url else _BASE
+    job_url    = normalize_url(job_url)
+
+    # Location
+    locs = item.get("locations") or []
+    region = item.get("region") or ""
+    if locs and isinstance(locs, list):
+        loc_names = []
+        for l in locs:
+            if isinstance(l, dict):
+                loc_names.append(l.get("city") or l.get("name") or l.get("country") or "")
+            elif isinstance(l, str):
+                loc_names.append(l)
+        raw_location = ", ".join(filter(None, loc_names))
+    elif region and region.lower() == "online":
+        raw_location = "Online"
+    else:
+        raw_location = region or query.location or ""
+
+    city = normalize_city(raw_location.split(",")[0] if raw_location else query.city)
+
+    # Work mode
+    is_online = region == "online" or "online" in raw_location.lower()
+    work_mode = WorkMode.REMOTE if is_online else WorkMode.UNKNOWN
+
+    # Skills
+    skills_raw = item.get("required_skills") or []
+    if isinstance(skills_raw, list):
+        skill_names = [
+            s.get("name") or s.get("skill") or str(s)
+            for s in skills_raw if s
+        ]
+    elif isinstance(skills_raw, str):
+        skill_names = [skills_raw]
+    else:
+        skill_names = []
+    skills = normalize_skills(skill_names)
+
+    # Prize money (treat as salary for hackathons)
+    prizes = item.get("prizes") or []
+    prize_text = ""
+    if isinstance(prizes, list) and prizes:
+        first = prizes[0]
+        if isinstance(first, dict):
+            prize_text = str(first.get("amount") or first.get("prize") or "")
+    salary = parse_money(prize_text) if prize_text else Money()
+
+    # Deadline / date
+    end_date    = parse_date(item.get("end_date") or "")
+    posted_date = parse_date(item.get("approved_date") or item.get("updated_at") or "")
+
+    # Job kind from type/subtype
+    item_type    = (item.get("type") or "").lower()
+    item_subtype = (item.get("subtype") or "").lower()
+    if "hackathon" in item_type or "coding" in item_subtype:
+        job_kind = JobKind.HACKATHON
+    elif "competition" in item_type or "competition" in item_subtype:
+        job_kind = JobKind.COMPETITION
+    elif "fellowship" in item_type or "fellowship" in item_subtype:
+        job_kind = JobKind.FELLOWSHIP
+    else:
+        job_kind = JobKind.COMPETITION
+
+    # Tags → extra context
+    tags = item.get("tags") or []
+    tag_names = [t.get("name") or t if isinstance(t, (str, dict)) else "" for t in tags]
+    description = f"Type: {item_type} | Tags: {', '.join(str(t) for t in tag_names[:5])}"
+
+    return Job(
+        title        = title,
+        company      = company,
+        source       = "unstop",
+        job_url      = job_url,
+        location     = raw_location,
+        city         = city,
+        country      = "India",
+        work_mode    = work_mode,
+        job_kind     = job_kind,
+        salary       = salary,
+        stipend      = salary,
+        skills       = skills,
+        deadline     = end_date,
+        date_posted  = posted_date,
+        description  = description,
+        source_job_id= str(item.get("id") or ""),
+        raw          = {"type": item_type, "subtype": item_subtype},
+    )

@@ -19,10 +19,13 @@ class LinkedInScraper(BaseScraper):
         params = {
             "keywords": query.normalized_term,
             "location": query.city or query.location or query.country,
+            "start": 0,
         }
         if query.remote:
             params["f_WT"] = "2"
-        return "https://www.linkedin.com/jobs/search?" + urlencode({k: v for k, v in params.items() if v})
+        return "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + urlencode(
+            {k: v for k, v in params.items() if v or k == "start"}
+        )
 
     def search(self, query: JobQuery) -> list[Job]:
         response = self.fetch(self.build_url(query))

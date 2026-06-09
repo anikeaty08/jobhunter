@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import logging
 
 from jobhunter.utils.cache import PageCache
@@ -31,6 +32,26 @@ class RequestsFetcher:
         if response is None:
             return None
         return FetchResponse(url=response.url, text=response.text, status_code=response.status_code, backend=self.backend)
+
+    def post_json(self, url: str, *, headers: dict[str, str] | None = None, payload: dict | None = None) -> FetchResponse | None:
+        try:
+            response = self.session.post(url, headers=headers, json=payload or {}, timeout=20)
+        except Exception:
+            logger.exception("POST failed: %s", url)
+            return None
+        return FetchResponse(url=response.url, text=response.text, status_code=response.status_code, backend=self.backend)
+
+    def get_json(self, url: str, *, params: dict | None = None, headers: dict | None = None) -> FetchResponse | None:
+        """GET request with optional query params and custom headers (e.g. XHR endpoints)."""
+        try:
+            merged = dict(self.session.headers)
+            if headers:
+                merged.update(headers)
+            response = self.session.get(url, params=params, headers=merged, timeout=20)
+        except Exception:
+            logger.exception("GET failed: %s", url)
+            return None
+        return FetchResponse(url=str(response.url), text=response.text, status_code=response.status_code, backend=self.backend)
 
 
 class CachedFetcher:
@@ -61,4 +82,29 @@ class CachedFetcher:
                 self.cache.set(self.source, response.url or url, response.text, response.status_code)
             return response
 
+        return response
+
+    def post_json(self, url: str, *, headers: dict[str, str] | None = None, payload: dict | None = None) -> FetchResponse | None:
+        cache_key = url + "::" + json.dumps(payload or {}, sort_keys=True)
+        if self.cache_enabled:
+            cached = self.cache.get(self.source, cache_key)
+            if cached is not None:
+                return FetchResponse(url=url, text=cached, status_code=200, backend="cache", from_cache=True)
+
+        response = self.primary.post_json(url, headers=headers, payload=payload)
+        if response and response.status_code == 200 and response.text.strip() and self.cache_enabled:
+            self.cache.set(self.source, cache_key, response.text, response.status_code)
+        return response
+
+    def get_json(self, url: str, *, params: dict | None = None, headers: dict | None = None) -> FetchResponse | None:
+        """GET with params + optional headers; caches on 200."""
+        cache_key = url + "::" + json.dumps(params or {}, sort_keys=True)
+        if self.cache_enabled:
+            cached = self.cache.get(self.source, cache_key)
+            if cached is not None:
+                return FetchResponse(url=url, text=cached, status_code=200, backend="cache", from_cache=True)
+
+        response = self.primary.get_json(url, params=params, headers=headers)
+        if response and response.status_code == 200 and response.text.strip() and self.cache_enabled:
+            self.cache.set(self.source, cache_key, response.text, response.status_code)
         return response

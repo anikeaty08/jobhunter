@@ -1,7 +1,8 @@
 import unittest
+import json
 
 from jobhunter.query import JobQuery
-from jobhunter.scrapers.indeed import parse_indeed_jobs
+from jobhunter.scrapers.indeed import parse_indeed_graphql_response
 from jobhunter.scrapers.internshala import parse_internshala_jobs
 from jobhunter.scrapers.linkedin import parse_linkedin_jobs
 from jobhunter.scrapers.unstop import parse_unstop_jobs
@@ -24,17 +25,47 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(jobs[0].stipend.min_amount, 15000)
 
     def test_indeed_parser(self):
-        html = """
-        <div data-jk="abc123">
-          <h2><a href="/viewjob?jk=abc123">Backend Engineer</a></h2>
-          <span class="companyName">Acme</span>
-          <div class="companyLocation">Bengaluru, Karnataka</div>
-          <span class="salary-snippet-container">5 - 8 LPA</span>
-        </div>
-        """
-        jobs = parse_indeed_jobs(html, JobQuery(role="backend engineer", search_term="backend engineer", city="Bengaluru", country="India"))
+        payload = {
+            "data": {
+                "jobSearch": {
+                    "pageInfo": {"nextCursor": "next"},
+                    "results": [
+                        {
+                            "job": {
+                                "key": "abc123",
+                                "title": "Backend Engineer Intern",
+                                "datePublished": 1780963200000,
+                                "description": {"html": "<p>Python internship</p>"},
+                                "location": {
+                                    "countryCode": "IN",
+                                    "admin1Code": "KA",
+                                    "city": "Bangalore",
+                                    "formatted": {"short": "Bangalore, KA", "long": "Bangalore, KA, IN"},
+                                },
+                                "compensation": {
+                                    "baseSalary": {"unitOfWork": "MONTH", "range": {"min": 15000, "max": 25000}},
+                                    "estimated": None,
+                                    "currencyCode": "INR",
+                                },
+                                "attributes": [{"key": "VDTG7", "label": "Internship"}],
+                                "employer": {"name": "Acme", "relativeCompanyPageUrl": "/cmp/acme", "dossier": {}},
+                                "recruit": {"viewJobUrl": "https://example.com/apply"},
+                            }
+                        }
+                    ],
+                }
+            }
+        }
+        jobs, cursor = parse_indeed_graphql_response(
+            json.dumps(payload),
+            JobQuery(role="backend engineer", search_term="backend engineer", city="Bengaluru", country="India"),
+        )
         self.assertEqual(len(jobs), 1)
+        self.assertEqual(cursor, "next")
         self.assertEqual(jobs[0].source_job_id, "abc123")
+        self.assertEqual(jobs[0].job_url, "https://in.indeed.com/viewjob?jk=abc123")
+        self.assertEqual(jobs[0].city, "Bengaluru")
+        self.assertEqual(jobs[0].salary.min_amount, 15000)
 
     def test_linkedin_parser(self):
         html = """
