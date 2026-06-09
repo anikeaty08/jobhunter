@@ -37,6 +37,12 @@ class JobQuery:
     include_regional: bool = True
     proxies: list[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        if self.city and not self.cities:
+            self.cities = [self.city]
+        if not self.search_term and self.role:
+            self.search_term = self.role
+
     @classmethod
     def from_kwargs(cls, **kwargs) -> "JobQuery":
         if "search_term" not in kwargs and "role" in kwargs:
