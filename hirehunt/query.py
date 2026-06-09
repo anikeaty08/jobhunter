@@ -56,6 +56,10 @@ class JobQuery:
     profile: JobProfile | None = None
 
     def __post_init__(self) -> None:
+        # Normalize city at entry — blr→Bengaluru, calcutta→Kolkata, mum→Mumbai etc.
+        if self.city:
+            from hirehunt.utils.normalization import normalize_city
+            self.city = normalize_city(self.city)
         if self.city and not self.cities:
             self.cities = [self.city]
         if not self.search_term and self.role:

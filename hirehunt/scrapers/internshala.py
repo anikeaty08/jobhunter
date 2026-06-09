@@ -61,15 +61,12 @@ class InternshalaScraper(BaseScraper):
         return "intern" in term or "intern" in str(kind).lower()
 
     def build_url(self, query: JobQuery, page: int = 1) -> str:
-        """Build paginated URL with optional city slug.
-        Internshala supports /internships/python-in-bangalore/ and /jobs/python-in-bangalore/
-        Uses _CITY_SLUG_ALIAS to map common city names to Internshala's URL conventions.
-        """
+        """Build paginated URL with city slug using centralized per-scraper city map."""
+        from hirehunt.utils.normalization import city_for_scraper
         kind = "internships" if self._is_internship_search(query) else "jobs"
         term_slug = _slug(query.normalized_term)
-        city = (query.city or "").lower().strip()
-        if city:
-            city_slug = _CITY_SLUG_ALIAS.get(city, _slug(city))
+        if query.city:
+            city_slug = city_for_scraper(query.city, "internshala")
             base = f"{BASE_URL}/{kind}/{term_slug}-in-{city_slug}/"
         else:
             base = f"{BASE_URL}/{kind}/{term_slug}/"

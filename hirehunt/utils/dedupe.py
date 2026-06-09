@@ -5,8 +5,8 @@ from __future__ import annotations
 from hashlib import sha256
 import re
 
-from jobhunter.models import Job
-from jobhunter.utils.normalization import normalize_url
+from hirehunt.models import Job
+from hirehunt.utils.normalization import normalize_url
 
 
 def _slug(value: str) -> str:

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from jobhunter.models import Job
-from jobhunter.query import JobQuery
-from jobhunter.utils.fetchers import CachedFetcher, FetchResponse
+from hirehunt.models import Job
+from hirehunt.query import JobQuery
+from hirehunt.utils.fetchers import CachedFetcher, FetchResponse
 
 
 class BaseScraper(ABC):

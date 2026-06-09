@@ -1,4 +1,4 @@
-"""Search engine orchestration."""
+"""Search engine orchestration with warnings."""
 
 from __future__ import annotations
 
@@ -6,14 +6,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import asyncio
 import logging
 
-from jobhunter.filtering import filter_jobs
-from jobhunter.models import ScrapeResult, SourceStats
-from jobhunter.query import JobQuery
-from jobhunter.ranking import rank_jobs
-from jobhunter.registry import ScraperRegistry, default_registry
-from jobhunter.utils.dedupe import deduplicate_jobs
+from hirehunt.filtering import filter_jobs
+from hirehunt.models import ScrapeResult, SourceStats
+from hirehunt.query import JobQuery
+from hirehunt.ranking import rank_jobs
+from hirehunt.registry import ScraperRegistry, default_registry
+from hirehunt.utils.dedupe import deduplicate_jobs
+from hirehunt.utils.normalization import KNOWN_CITIES
 
 logger = logging.getLogger(__name__)
+
+
+def _city_warnings(query: JobQuery) -> list[str]:
+    """Emit warnings for unrecognised cities before scraping starts."""
+    warnings: list[str] = []
+    if query.city and query.city.lower() not in KNOWN_CITIES:
+        warnings.append(
+            f"⚠️  '{query.city}' is not a recognised Indian city. "
+            "Results may be empty or incorrect. "
+            "Try full city names like 'Bengaluru', 'Mumbai', 'Hyderabad'."
+        )
+    return warnings
 
 
 class SearchEngine:
@@ -23,7 +36,10 @@ class SearchEngine:
 
     def search(self, query: JobQuery) -> ScrapeResult:
         sources = query.source_list or self.registry.auto_sources(query.country, query.include_regional)
-        result = ScrapeResult(stats={source: SourceStats() for source in sources})
+        result = ScrapeResult(
+            stats={source: SourceStats() for source in sources},
+            warnings=_city_warnings(query),
+        )
         all_jobs = []
 
         with ThreadPoolExecutor(max_workers=min(self.max_workers, max(1, len(sources)))) as executor:
@@ -36,12 +52,16 @@ class SearchEngine:
                 source = futures[future]
                 try:
                     jobs = future.result()
-                except Exception as exc:  # scrapers should not crash the whole search
+                except Exception as exc:
                     logger.exception("source failed: %s", source)
                     result.errors[source] = str(exc)
                     result.stats[source].errors += 1
+                    result.warnings.append(f"⚠️  {source}: failed to fetch ({exc.__class__.__name__})")
                     continue
                 result.stats[source].found = len(jobs)
+                # Warn when a source returns 0 results
+                if len(jobs) == 0:
+                    result.warnings.append(f"ℹ️  {source}: returned 0 results for '{query.normalized_term}'")
                 all_jobs.extend(jobs)
 
         filtered = filter_jobs(all_jobs, query)
@@ -56,11 +76,20 @@ class SearchEngine:
             result.stats.setdefault(source, SourceStats()).kept = kept
         if sources:
             result.stats[sources[0]].duplicates = duplicate_count
+
+        # Final warning if everything returned 0
+        if not result.jobs:
+            result.warnings.append(
+                "⚠️  No jobs found. Try: broader search term, different city, or more sources."
+            )
         return result
 
     async def search_async(self, query: JobQuery) -> ScrapeResult:
         sources = query.source_list or self.registry.auto_sources(query.country, query.include_regional)
-        result = ScrapeResult(stats={source: SourceStats() for source in sources})
+        result = ScrapeResult(
+            stats={source: SourceStats() for source in sources},
+            warnings=_city_warnings(query),
+        )
 
         async def run_source(source: str):
             scraper = self._create_scraper(source, query)

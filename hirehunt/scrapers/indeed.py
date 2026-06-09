@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import os
 
-from jobhunter.models import Job, JobKind, Money, SalaryPeriod, WorkMode
-from jobhunter.query import JobQuery
-from jobhunter.scrapers.base import BaseScraper
-from jobhunter.utils.normalization import clean_text, normalize_city, parse_experience, parse_job_kind
+from hirehunt.models import Job, JobKind, Money, SalaryPeriod, WorkMode
+from hirehunt.query import JobQuery
+from hirehunt.scrapers.base import BaseScraper
+from hirehunt.utils.normalization import clean_text, normalize_city, parse_experience, parse_job_kind
 
 
 INDEED_GRAPHQL_URL = "https://apis.indeed.com/graphql"

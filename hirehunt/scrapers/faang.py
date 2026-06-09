@@ -20,11 +20,11 @@ import re
 import time
 from urllib.parse import urlencode
 
-from jobhunter.models import Job, JobKind, Money, SalaryPeriod, WorkMode
-from jobhunter.query import JobQuery
-from jobhunter.scrapers.base import BaseScraper
-from jobhunter.scrapers.linkedin import LinkedInScraper
-from jobhunter.utils.normalization import (
+from hirehunt.models import Job, JobKind, Money, SalaryPeriod, WorkMode
+from hirehunt.query import JobQuery
+from hirehunt.scrapers.base import BaseScraper
+from hirehunt.scrapers.linkedin import LinkedInScraper
+from hirehunt.utils.normalization import (
     clean_text,
     normalize_city,
     normalize_skills,
@@ -89,7 +89,7 @@ class _CompanyLinkedInScraper(LinkedInScraper):
         )
 
     def search(self, query: JobQuery) -> list[Job]:
-        from jobhunter.scrapers.linkedin import parse_linkedin_jobs
+        from hirehunt.scrapers.linkedin import parse_linkedin_jobs
         resp = self.fetch(self.build_url(query))
         if not resp or resp.status_code != 200:
             return []

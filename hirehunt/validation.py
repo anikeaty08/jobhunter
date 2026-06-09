@@ -7,8 +7,8 @@ from pathlib import Path
 import json
 import time
 
-from jobhunter.query import JobQuery
-from jobhunter.registry import default_registry
+from hirehunt.query import JobQuery
+from hirehunt.registry import default_registry
 
 
 @dataclass
@@ -76,15 +76,15 @@ def validate_sources(query: JobQuery, sources: list[str] | None = None) -> list[
 def _parse_with_source(scraper, html: str, query: JobQuery):
     source = scraper.source
     if source == "internshala":
-        from jobhunter.scrapers.internshala import parse_internshala_jobs
+        from hirehunt.scrapers.internshala import parse_internshala_jobs
 
         return parse_internshala_jobs(html, query)
     if source == "linkedin":
-        from jobhunter.scrapers.linkedin import parse_linkedin_jobs
+        from hirehunt.scrapers.linkedin import parse_linkedin_jobs
 
         return parse_linkedin_jobs(html, query)
     if source == "unstop":
-        from jobhunter.scrapers.unstop import parse_unstop_jobs
+        from hirehunt.scrapers.unstop import parse_unstop_jobs
 
         return parse_unstop_jobs(html, query)
     return scraper.search(query)

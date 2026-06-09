@@ -29,10 +29,10 @@ from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 
-from jobhunter.models import Job, JobKind, Money, SalaryPeriod, WorkMode
-from jobhunter.query import JobQuery
-from jobhunter.scrapers.base import BaseScraper
-from jobhunter.utils.normalization import (
+from hirehunt.models import Job, JobKind, Money, SalaryPeriod, WorkMode
+from hirehunt.query import JobQuery
+from hirehunt.scrapers.base import BaseScraper
+from hirehunt.utils.normalization import (
     clean_text,
     normalize_city,
     normalize_skills,

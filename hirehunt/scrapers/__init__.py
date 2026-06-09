@@ -1,6 +1,6 @@
 """Built-in source scrapers."""
 
-from jobhunter.scrapers.faang import (
+from hirehunt.scrapers.faang import (
     AmazonJobsScraper,
     AppleJobsScraper,
     GoogleCareersScraper,
@@ -8,12 +8,12 @@ from jobhunter.scrapers.faang import (
     MicrosoftCareersScraper,
     NetflixJobsScraper,
 )
-from jobhunter.scrapers.indeed import IndeedScraper
-from jobhunter.scrapers.internshala import InternshalaScraper
-from jobhunter.scrapers.linkedin import LinkedInScraper
-from jobhunter.scrapers.naukri import NaukriScraper
-from jobhunter.scrapers.shine import ShineScraper
-from jobhunter.scrapers.unstop import UnstopScraper
+from hirehunt.scrapers.indeed import IndeedScraper
+from hirehunt.scrapers.internshala import InternshalaScraper
+from hirehunt.scrapers.linkedin import LinkedInScraper
+from hirehunt.scrapers.naukri import NaukriScraper
+from hirehunt.scrapers.shine import ShineScraper
+from hirehunt.scrapers.unstop import UnstopScraper
 
 BUILTIN_SCRAPERS = [
     # Global

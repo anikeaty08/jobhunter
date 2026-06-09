@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from jobhunter.models import Job, WorkMode
-from jobhunter.query import JobProfile, JobQuery
+from hirehunt.models import Job, WorkMode
+from hirehunt.query import JobProfile, JobQuery
 
 
 def rank_jobs(jobs: list[Job], query: JobQuery) -> list[Job]:

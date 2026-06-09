@@ -6,10 +6,10 @@ from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 
-from jobhunter.models import Job, JobKind
-from jobhunter.query import JobQuery
-from jobhunter.scrapers.base import BaseScraper
-from jobhunter.utils.normalization import clean_text, normalize_city, normalize_url, parse_date, parse_job_kind, parse_work_mode
+from hirehunt.models import Job, JobKind
+from hirehunt.query import JobQuery
+from hirehunt.scrapers.base import BaseScraper
+from hirehunt.utils.normalization import clean_text, normalize_city, normalize_url, parse_date, parse_job_kind, parse_work_mode
 
 
 class LinkedInScraper(BaseScraper):

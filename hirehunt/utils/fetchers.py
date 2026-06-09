@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import json
 import logging
 
-from jobhunter.utils.cache import PageCache
-from jobhunter.utils.http import build_session, safe_get
+from hirehunt.utils.cache import PageCache
+from hirehunt.utils.http import build_session, safe_get
 
 logger = logging.getLogger(__name__)
 

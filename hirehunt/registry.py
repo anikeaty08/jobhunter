@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from jobhunter.exceptions import UnknownSourceError
-from jobhunter.scrapers.base import BaseScraper
+from hirehunt.exceptions import UnknownSourceError
+from hirehunt.scrapers.base import BaseScraper
 
 
 class ScraperRegistry:
@@ -38,7 +38,7 @@ class ScraperRegistry:
 
 
 def default_registry() -> ScraperRegistry:
-    from jobhunter.scrapers import BUILTIN_SCRAPERS
+    from hirehunt.scrapers import BUILTIN_SCRAPERS
 
     registry = ScraperRegistry()
     for scraper_cls in BUILTIN_SCRAPERS:

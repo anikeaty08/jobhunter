@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from jobhunter.models import Job
+from hirehunt.models import Job
 
 
 def to_dataframe(jobs: list[Job]):

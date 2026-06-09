@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from jobhunter.models import Job
+from hirehunt.models import Job
 
 
 def to_json(jobs: list[Job], path: str) -> None:

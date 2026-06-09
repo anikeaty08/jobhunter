@@ -118,6 +118,7 @@ class ScrapeResult:
     jobs: list[Job] = field(default_factory=list)
     errors: dict[str, str] = field(default_factory=dict)
     stats: dict[str, SourceStats] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dicts(self) -> list[dict[str, Any]]:
         return [job.to_dict() for job in self.jobs]
@@ -126,6 +127,5 @@ class ScrapeResult:
         return self.jobs[:count]
 
     def to_dataframe(self):
-        from jobhunter.exporters.dataframe import to_dataframe
-
+        from hirehunt.exporters.dataframe import to_dataframe
         return to_dataframe(self.jobs)

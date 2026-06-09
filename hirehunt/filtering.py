@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from jobhunter.models import Job, JobKind, WorkMode
-from jobhunter.query import JobQuery
+from hirehunt.models import Job, JobKind, WorkMode
+from hirehunt.query import JobQuery
 
 
 def _contains_any(value: str, needles: list[str]) -> bool:
@@ -33,14 +33,20 @@ def filter_jobs(jobs: list[Job], query: JobQuery) -> list[Job]:
             continue
 
         # ── City filter (SOFT: skip if job.city is empty/unknown) ──────────
-        # Only drop if job has a city AND it's clearly a different city
+        # Normalize both sides so Bangalore==Bengaluru, Calcutta==Kolkata etc.
         if query.city and job.city:
-            if query.city.lower() not in job.city.lower():
+            from hirehunt.utils.normalization import normalize_city
+            query_canonical = normalize_city(query.city).lower()
+            job_canonical = normalize_city(job.city).lower()
+            if query_canonical not in job_canonical and job_canonical not in query_canonical:
                 continue
 
         # ── Multi-city filter (SOFT) ────────────────────────────────────────
         if query.cities and job.city:
-            if not any(city.lower() in job.city.lower() for city in query.cities):
+            from hirehunt.utils.normalization import normalize_city
+            job_canonical = normalize_city(job.city).lower()
+            if not any(normalize_city(c).lower() in job_canonical or job_canonical in normalize_city(c).lower()
+                       for c in query.cities):
                 continue
 
         # ── Country filter (SOFT) ───────────────────────────────────────────
