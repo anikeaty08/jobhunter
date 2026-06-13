@@ -72,7 +72,11 @@ class DefaultDedupePolicy:
     def apply(self, jobs: list[Job], query: "JobQuery") -> DedupeOutcome:
         from hirehunt.utils.dedupe import deduplicate_jobs_with_diagnostics
 
-        return deduplicate_jobs_with_diagnostics(jobs, mode=query.dedupe_mode)
+        return deduplicate_jobs_with_diagnostics(
+            jobs,
+            mode=query.dedupe_mode,
+            scope=query.dedupe_scope,
+        )
 
 
 @dataclass

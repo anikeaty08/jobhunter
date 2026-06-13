@@ -205,9 +205,72 @@ def normalize_city(city: str | None) -> str:
     return CITY_ALIASES.get(lowered, value.title() if value.islower() else value)
 
 
+def normalize_company(company: str | None) -> str:
+    value = clean_text(company)
+    if not value:
+        return ""
+    value = re.sub(r"\s+", " ", value).strip(" -|,")
+    return value.title() if value.islower() else value
+
+
+def normalize_location_text(location: str | None) -> str:
+    value = clean_text(location).strip(" -|,")
+    if not value:
+        return ""
+    lowered = value.lower()
+    mode_prefixes = (
+        "hybrid -",
+        "onsite -",
+        "on-site -",
+        "remote -",
+        "work from home -",
+    )
+    for prefix in mode_prefixes:
+        if lowered.startswith(prefix):
+            value = value[len(prefix):].strip(" -|,")
+            lowered = value.lower()
+            break
+    if lowered in {"hybrid", "onsite", "on-site", "remote", "work from home"}:
+        return ""
+    parts = []
+    for part in re.split(r"\s*,\s*", value):
+        cleaned = clean_text(part).strip(" -|,")
+        if not cleaned:
+            continue
+        canonical = normalize_city(cleaned)
+        if canonical and canonical != "Remote":
+            cleaned = canonical
+        parts.append(cleaned)
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        key = part.lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(part)
+    return ", ".join(deduped)
+
+
 def normalize_country(country: str | None) -> str:
     value = clean_text(country).strip().lower()
     return COUNTRY_ALIASES.get(value, value)
+
+
+def extract_primary_city(location: str | None) -> str:
+    value = normalize_location_text(location)
+    if not value:
+        return ""
+    parts = re.split(r"\s*[,/|]\s*", value)
+    for part in parts:
+        city = normalize_city(part)
+        lowered = city.lower()
+        if lowered in KNOWN_CITIES and city != "Remote":
+            return city
+    for part in parts:
+        city = normalize_city(part)
+        if city and city != "Remote":
+            return city
+    return ""
 
 
 def normalize_url(url: str | None) -> str:

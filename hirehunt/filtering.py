@@ -16,6 +16,21 @@ def _contains_any(value: str, needles: list[str]) -> bool:
     return any(needle.lower() in lowered for needle in needles if needle)
 
 
+def _title_match_strength(job: Job, query: JobQuery) -> str:
+    query_text = query.normalized_term.lower().strip()
+    if not query_text:
+        return "none"
+    title = job.title.lower().strip()
+    if title == query_text:
+        return "exact"
+    if title.startswith(query_text):
+        return "prefix"
+    terms = [part for part in query_text.split() if len(part) > 2]
+    if terms and all(term in title for term in terms):
+        return "strong"
+    return "weak"
+
+
 def _company_matches(job: Job, companies: list[str]) -> bool:
     if not companies:
         return True
@@ -111,9 +126,17 @@ def _filter_reason(job: Job, query: JobQuery, today: date) -> str | None:
         if str(job.job_kind) not in wanted and job.job_kind not in wanted:
             return "job_kind_mismatch"
 
+    match_strength = _title_match_strength(job, query)
+    if query.match_mode == "strict" and match_strength not in {"exact", "prefix", "strong"}:
+        return "title_mismatch"
+
     if query.normalized_term and not _contains_any(searchable, [query.normalized_term]):
         terms = [part for part in query.normalized_term.split() if len(part) > 2]
         if terms and not _contains_any(searchable, terms):
+            return "keyword_mismatch"
+    elif query.match_mode == "balanced" and match_strength == "weak":
+        terms = [part for part in query.normalized_term.split() if len(part) > 2]
+        if terms and not any(term in job.title.lower() for term in terms):
             return "keyword_mismatch"
 
     return None

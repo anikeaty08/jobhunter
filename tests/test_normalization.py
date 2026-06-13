@@ -1,7 +1,14 @@
 import unittest
 
 from hirehunt.models import SalaryPeriod, WorkMode
-from hirehunt.utils.normalization import normalize_city, parse_money, parse_work_mode
+from hirehunt.utils.normalization import (
+    extract_primary_city,
+    normalize_city,
+    normalize_company,
+    normalize_location_text,
+    parse_money,
+    parse_work_mode,
+)
 
 
 class NormalizationTests(unittest.TestCase):
@@ -23,6 +30,16 @@ class NormalizationTests(unittest.TestCase):
 
     def test_work_mode(self):
         self.assertEqual(parse_work_mode("Work from home"), WorkMode.REMOTE)
+
+    def test_location_cleanup(self):
+        self.assertEqual(normalize_location_text("Hybrid -"), "")
+        self.assertEqual(normalize_location_text("Hybrid - Bengaluru, Bangalore"), "Bengaluru")
+
+    def test_primary_city_extraction(self):
+        self.assertEqual(extract_primary_city("Chennai, Bangalore, Hyderabad"), "Chennai")
+
+    def test_company_cleanup(self):
+        self.assertEqual(normalize_company("  acme technologies  "), "Acme Technologies")
 
 
 if __name__ == "__main__":

@@ -53,6 +53,8 @@ class JobQuery:
     posted_within_days: int | None = None
     results_wanted: int | None = 50
     dedupe_mode: str = "strict"
+    dedupe_scope: str = "title-company-location-country"
+    match_mode: str = "balanced"
     fetch_descriptions: bool = False
     fetch_backend: str = "requests"
     cache_enabled: bool = False
@@ -78,8 +80,10 @@ class JobQuery:
             self.profile = JobProfile(**self.profile)
         if isinstance(self.request_policy, dict):
             self.request_policy = RequestPolicy(**self.request_policy)
-        if self.dedupe_mode not in {"strict", "heuristic", "none"}:
-            raise ValueError("dedupe_mode must be 'strict', 'heuristic', or 'none'")
+        if self.dedupe_mode not in {"strict", "heuristic", "fuzzy", "none"}:
+            raise ValueError("dedupe_mode must be 'strict', 'heuristic', 'fuzzy', or 'none'")
+        if self.match_mode not in {"strict", "balanced", "broad"}:
+            raise ValueError("match_mode must be 'strict', 'balanced', or 'broad'")
 
     @classmethod
     def from_kwargs(cls, **kwargs) -> "JobQuery":

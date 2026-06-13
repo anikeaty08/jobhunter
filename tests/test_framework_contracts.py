@@ -179,6 +179,36 @@ class FrameworkContractTests(unittest.TestCase):
             "Developer @ Acme | Bengaluru | mock | https://example.com/job",
         )
 
+    def test_job_compact_rendering_normalizes_location_and_compensation(self):
+        job = Job(
+            "Developer",
+            "acme technologies",
+            "mock",
+            "https://example.com/job",
+            city="Hybrid -",
+            location="Hybrid - Bengaluru, Bangalore",
+            salary={"min_amount": 400000, "max_amount": 600000, "currency": "INR", "period": "year"},
+        )
+        compact = job.to_compact_dict()
+        self.assertEqual(job.company, "Acme Technologies")
+        self.assertEqual(compact["display_location"], "Bengaluru (Hybrid)")
+        self.assertEqual(compact["compensation"], "INR 4-6 LPA")
+
+    def test_scrape_result_summary_and_envelope_are_available(self):
+        stats = SourceStats(1, 1, 0, 0, parsed=1)
+        stats.filter_reasons = {"city_mismatch": 2}
+        result = ScrapeResult(
+            jobs=[Job("Developer", "Acme", "mock", "https://example.com/job", city="Bengaluru")],
+            stats={"mock": stats},
+            selected_sources=["mock"],
+        )
+        summary = result.to_summary_dict()
+        envelope = result.to_json_envelope(query={"role": "developer"})
+        self.assertEqual(summary["job_count"], 1)
+        self.assertEqual(summary["filter_reasons"]["city_mismatch"], 2)
+        self.assertEqual(envelope["status"], "ok")
+        self.assertEqual(envelope["query"]["role"], "developer")
+
     def test_existing_positional_model_construction_remains_valid(self):
         stats = SourceStats(2, 1, 0, 0)
         result = ScrapeResult([], {}, {"mock": stats}, [])

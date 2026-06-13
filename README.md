@@ -63,8 +63,8 @@ result = scrape_jobs(
 
 for job in result.jobs:
     print(job)
-# Python Developer @ TCS | Bengaluru | naukri
-# Python Developer @ Infosys | Bengaluru | shine
+# Python Developer @ TCS | Bengaluru | naukri | https://...
+# Python Developer @ Infosys | Bengaluru | shine | https://...
 ```
 
 ### CLI
@@ -85,6 +85,9 @@ hirehunt search "software engineer" --source google_careers --source amazon
 # Expand a whole source family
 hirehunt search "backend developer" --source-family aggregator --country India
 
+# Search with stronger matching and freshness filters
+hirehunt search "python developer" --city Bengaluru --posted-days 7 --max-exp 5 --match-mode strict
+
 # Benchmark a family
 hirehunt benchmark "python developer" --source-family regional --country India --limit 10
 
@@ -94,9 +97,52 @@ hirehunt validate "software engineer" --source-family aggregator --country India
 # Export to CSV
 hirehunt search "backend developer" --source naukri --source linkedin --csv jobs.csv
 
+# Export to JSON
+hirehunt search "backend developer" --source naukri --source linkedin --json jobs.json
+
+# Agent-native JSON to stdout
+hirehunt search "backend developer" --source naukri --output json
+hirehunt search "backend developer" --source naukri --json-stdout
+hirehunt search "backend developer" --source naukri --summary-json
+
+# Fuzzy cross-source dedupe
+hirehunt search "software developer" --source naukri --source linkedin --dedupe-mode fuzzy --dedupe-scope title-company-location
+
+# Saved searches / bookmarks
+hirehunt saved-search add python-blr "python developer" --city Bengaluru --related --fuzzy-dedupe
+hirehunt saved-search list
+hirehunt saved-search show python-blr
+hirehunt saved-search run python-blr --output json
+
 # Top 20 ranked results
 hirehunt search "machine learning" --source naukri --source shine --top 20
 ```
+
+Default search output is optimized for fast scanning:
+
+```text
+Found 32 jobs
+
+1. Python Developer @ UST
+   Bengaluru
+   3-5 yrs
+   Today
+   INR 4-6 LPA
+   Naukri
+```
+
+Use `--verbose`, `--show-score`, `--show-salary`, `--show-skills`, or
+`--explain-score` for expanded output.
+
+Machine-readable stdout is available through `--output json`, `--json-stdout`,
+`--summary-json`, and `--no-pretty`.
+
+Search exit codes are stable:
+
+- `0`: success with jobs
+- `3`: no jobs found
+- `4`: partial results or source errors
+- `5`: output/export failure
 
 ---
 
@@ -138,7 +184,8 @@ result = scrape_jobs(
     location="India",                 # Broader location (optional)
     country="India",                  # Country (optional)
     results_wanted=50,                # Max per source; None or 0 = exhaustive
-    dedupe_mode="strict",             # "strict", "heuristic", or "none"
+    dedupe_mode="strict",             # "strict", "heuristic", "fuzzy", or "none"
+    dedupe_scope="title-company-location-country",
     job_kind="job",                   # "job", "internship", "hackathon"
     remote=None,                      # True = remote only
     work_mode=None,                   # "remote", "hybrid", "onsite", "unknown"
@@ -166,6 +213,19 @@ result.warnings
 result.partial
 result.selected_sources
 result.stats
+```
+
+Framework-level rendering helpers are now available directly on the models:
+
+```python
+job.display_location()
+job.display_experience()
+job.display_posted_age()
+job.display_compensation()
+job.to_compact_dict()
+
+result.to_summary_dict()
+result.to_json_envelope(query={"role": "python developer"})
 ```
 
 ### `Job` Object
@@ -320,7 +380,61 @@ Deduplication modes available through `JobQuery`:
 
 - `strict`: normalized URL, then source ID, then fallback identity.
 - `heuristic`: normalized title, company, location, and country across sources.
+- `fuzzy`: near-title matching plus company/location identity.
 - `none`: retain every parsed record.
+
+`dedupe_scope` controls which identity fields are used for heuristic and fuzzy
+dedupe. Available scopes are:
+
+- `title-company-location-country`
+- `title-company-location`
+- `title-company`
+
+## CLI JSON Contract
+
+For automation agents, `hirehunt search --output json` writes a stable envelope
+to stdout:
+
+```json
+{
+  "ok": true,
+  "status": "ok",
+  "exit_code": 0,
+  "command": "search",
+  "version": "0.5.0",
+  "meta": {
+    "format": "json",
+    "schema_version": "1.0"
+  },
+  "query": {},
+  "summary": {
+    "job_count": 0,
+    "warnings": [],
+    "errors": {},
+    "source_summary": {},
+    "filter_reasons": {}
+  },
+  "jobs": []
+}
+```
+
+`--summary-json` emits the same summary contract without the full job list.
+`--no-pretty` upgrades plain text mode into the JSON envelope automatically.
+
+CLI parse and output failures also return machine-readable envelopes when a
+machine mode is requested.
+
+## Saved Searches
+
+Saved searches provide lightweight bookmark support for the CLI:
+
+```bash
+hirehunt saved-search add backend-blr "backend developer" --city Bengaluru --related
+hirehunt saved-search list
+hirehunt saved-search show backend-blr
+hirehunt saved-search run backend-blr
+hirehunt saved-search remove backend-blr
+```
 
 ### Retry And Rate Policy
 

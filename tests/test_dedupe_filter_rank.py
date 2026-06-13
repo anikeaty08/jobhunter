@@ -26,6 +26,15 @@ class DedupeFilterRankTests(unittest.TestCase):
         self.assertEqual(len(unique), 1)
         self.assertEqual(duplicates, 1)
 
+    def test_fuzzy_dedupe_matches_near_identical_titles(self):
+        jobs = [
+            Job("Software Developer 4", "Oracle", "indeed", "https://indeed.example/1", city="Bengaluru"),
+            Job("Software Developer IV", "Oracle", "linkedin", "https://linkedin.example/2", city="Bengaluru"),
+        ]
+        unique, duplicates = deduplicate_jobs(jobs, mode="fuzzy", scope="title-company-location")
+        self.assertEqual(len(unique), 1)
+        self.assertEqual(duplicates, 1)
+
     def test_city_filter_and_rank(self):
         query = JobQuery(role="backend intern", search_term="backend intern", city="Bengaluru", skills=["python"], fresher=True)
         jobs = [
@@ -44,6 +53,15 @@ class DedupeFilterRankTests(unittest.TestCase):
         ranked = rank_jobs([Job("Python Developer", "Acme", "linkedin", "https://example.com/1")], query)
         self.assertTrue(any("skills match" in reason for reason in ranked[0].reasons))
         self.assertFalse(any("no requested skills" in warning for warning in ranked[0].warnings))
+
+    def test_exact_title_match_ranks_above_broader_match(self):
+        query = JobQuery(role="python developer", search_term="python developer")
+        jobs = [
+            Job("Python Developer", "Acme", "linkedin", "https://example.com/1"),
+            Job("Java with Python Developer", "Beta", "linkedin", "https://example.com/2"),
+        ]
+        ranked = rank_jobs(jobs, query)
+        self.assertEqual(ranked[0].title, "Python Developer")
 
 
 if __name__ == "__main__":
