@@ -24,6 +24,7 @@ dev = ["build>=1.2.0", "twine>=5.0.0"]
 
 [project.scripts]
 hirehunt = "hirehunt.cli:main"
+hirehunt-mcp = "hirehunt.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["hirehunt*", "jobhunter*"]

@@ -12,6 +12,12 @@ HireHunt provides:
 - Graceful partial results when one source fails.
 - Fixture-based parser contract tests, optional live validation, and benchmark reporting.
 
+## Documentation
+
+- [CLI guide](docs/CLI.md)
+- [Framework guide](docs/FRAMEWORK.md)
+- [MCP server guide](docs/MCP.md)
+
 ---
 
 ## Sources
